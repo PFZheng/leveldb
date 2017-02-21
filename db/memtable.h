@@ -23,6 +23,8 @@ class MemTable {
   // is zero and the caller must call Ref() at least once.
   explicit MemTable(const InternalKeyComparator& comparator);
 
+  // 这里的计数不是atomic的
+
   // Increase reference count.
   void Ref() { ++refs_; }
 
