@@ -1112,7 +1112,6 @@ Status DBImpl::Get(const ReadOptions& options,
   Status s;
   MutexLock l(&mutex_);
   SequenceNumber snapshot;
-  // 读是和特定版本绑定到一起的
   if (options.snapshot != NULL) {
     snapshot = reinterpret_cast<const SnapshotImpl*>(options.snapshot)->number_;
   } else {
@@ -1192,7 +1191,6 @@ Status DBImpl::Delete(const WriteOptions& options, const Slice& key) {
   return DB::Delete(options, key);
 }
 
-// 写一系列数据
 Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   Writer w(&mutex_);
   w.batch = my_batch;
@@ -1201,7 +1199,6 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
 
   MutexLock l(&mutex_);
   writers_.push_back(&w);
-  // 等待直到成为队列第一个, 才允许做操作
   while (!w.done && &w != writers_.front()) {
     w.cv.Wait();
   }
@@ -1210,14 +1207,11 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   }
 
   // May temporarily unlock and wait.
-  // 为本次写创造空间
   Status status = MakeRoomForWrite(my_batch == NULL);
   uint64_t last_sequence = versions_->LastSequence();
   Writer* last_writer = &w;
   if (status.ok() && my_batch != NULL) {  // NULL batch is for compactions
-    // 可以写了, 尝试合并更新
     WriteBatch* updates = BuildBatchGroup(&last_writer);
-    // 更新序列号
     WriteBatchInternal::SetSequence(updates, last_sequence + 1);
     last_sequence += WriteBatchInternal::Count(updates);
 
@@ -1225,7 +1219,6 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
     // during this phase since &w is currently responsible for logging
     // and protects against concurrent loggers and concurrent writes
     // into mem_.
-    // 先写 log 再写内存
     {
       mutex_.Unlock();
       status = log_->AddRecord(WriteBatchInternal::Contents(updates));
@@ -1252,7 +1245,6 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
     versions_->SetLastSequence(last_sequence);
   }
 
-  // 唤醒已经完成的等待writer, writer 做的时候回merge
   while (true) {
     Writer* ready = writers_.front();
     writers_.pop_front();
@@ -1265,7 +1257,6 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   }
 
   // Notify new head of write queue
-  // 唤醒对头
   if (!writers_.empty()) {
     writers_.front()->cv.Signal();
   }
@@ -1296,7 +1287,6 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   ++iter;  // Advance past "first"
   for (; iter != writers_.end(); ++iter) {
     Writer* w = *iter;
-    // non-sync write 到 sync write就终止
     if (w->sync && !first->sync) {
       // Do not include a sync write into a batch handled by a non-sync write.
       break;
@@ -1325,7 +1315,6 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
 
 // REQUIRES: mutex_ is held
 // REQUIRES: this thread is currently at the front of the writer queue
-// 普通情况下, 
 Status DBImpl::MakeRoomForWrite(bool force) {
   mutex_.AssertHeld();
   assert(!writers_.empty());
@@ -1346,9 +1335,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       // this delay hands over some CPU to the compaction thread in
       // case it is sharing the same core as the writer.
       mutex_.Unlock();
-      // 快接近L0文件的上限了, 稍微delay 1ms
       env_->SleepForMicroseconds(1000);
-      // 下一次不再delay
       allow_delay = false;  // Do not delay a single write more than once
       mutex_.Lock();
     } else if (!force &&
