@@ -79,6 +79,8 @@ Iterator* MemTable::NewIterator() {
   return new MemTableIterator(&table_);
 }
 
+// 在 memtable 里面增加一条记录, 每一条记录会和一个特定的
+// 序列号绑定到一起
 void MemTable::Add(SequenceNumber s, ValueType type,
                    const Slice& key,
                    const Slice& value) {

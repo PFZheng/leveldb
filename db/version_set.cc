@@ -37,6 +37,9 @@ static int64_t ExpandedCompactionByteSizeLimit(const Options* options) {
   return 25 * TargetFileSize(options);
 }
 
+// 每个 level 数据量上限
+// 每一级 level 比上一级容量多十倍 
+// level 0  和 level 1 为 10 * 1024 * 1024 (10MB)
 static double MaxBytesForLevel(const Options* options, int level) {
   // Note: the result for level zero is not really used since we set
   // the level-0 compaction threshold based on number of files.
@@ -71,6 +74,7 @@ Version::~Version() {
   next_->prev_ = prev_;
 
   // Drop references to files
+  // 挨个 level release, 这儿为啥不包装一下
   for (int level = 0; level < config::kNumLevels; level++) {
     for (size_t i = 0; i < files_[level].size(); i++) {
       FileMetaData* f = files_[level][i];

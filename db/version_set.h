@@ -11,6 +11,9 @@
 //
 // Version,VersionSet are thread-compatible, but require external
 // synchronization on all accesses.
+// 
+// 版本集合, 主要保存各个 level 的版本相关的文件信息, 每一个 level 形成
+// 一个 Version
 
 #ifndef STORAGE_LEVELDB_DB_VERSION_SET_H_
 #define STORAGE_LEVELDB_DB_VERSION_SET_H_

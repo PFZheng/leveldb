@@ -23,6 +23,8 @@ class MemTable {
   // is zero and the caller must call Ref() at least once.
   explicit MemTable(const InternalKeyComparator& comparator);
 
+  // 下面的 ref count 不是线程安全的
+
   // Increase reference count.
   void Ref() { ++refs_; }
 

@@ -27,6 +27,11 @@
 //
 // ... prev vs. next pointer ordering ...
 
+// skiplist vs red-black tree
+// 1. 常用操作的时间复杂度一致, skiplist 稍慢, 但实现上更为简单
+// 2. skiplist 可以比较容易实现无锁话, 但是 red-black tree 很难
+// TODO: 实际测试 skiplist 和 red-black tree 的性能
+
 #include <assert.h>
 #include <stdlib.h>
 #include "port/port.h"

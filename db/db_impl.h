@@ -1,6 +1,9 @@
 // Copyright (c) 2011 The LevelDB Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
+// 
+// DB 的组成:
+// - Version: 每一个 level 的文件形成一个 Version.
 
 #ifndef STORAGE_LEVELDB_DB_DB_IMPL_H_
 #define STORAGE_LEVELDB_DB_DB_IMPL_H_
@@ -168,6 +171,7 @@ class DBImpl : public DB {
   };
   ManualCompaction* manual_compaction_;
 
+  // version 版本集合
   VersionSet* versions_;
 
   // Have we encountered a background error in paranoid mode?
