@@ -86,7 +86,8 @@ bool Reader::ReadRecord(Slice* record, std::string* scratch) {
     // 指定 offset 的情况下, 头一个记录可能不完整, 需要跳过
     // 一个完整的记录包含一系列连续的 record:
     // - kFirstType: 第一个 record
-    // - kMiddleType: 若干个连续的记录
+    // - kMiddleType: 若干个连续的中间 record
+    // - kLastType: 最后一个 record
     if (resyncing_) {
       if (record_type == kMiddleType) {
         continue;
@@ -202,6 +203,7 @@ void Reader::ReportDrop(uint64_t bytes, const Status& reason) {
   }
 }
 
+// 读取一个 record
 unsigned int Reader::ReadPhysicalRecord(Slice* result) {
   while (true) {
     if (buffer_.size() < kHeaderSize) {
@@ -224,6 +226,8 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
         // end of the file, which can be caused by the writer crashing in the
         // middle of writing the header. Instead of considering this an error,
         // just report EOF.
+        // 尾部有残留的不完整 header, 可能是因为 writer 在写的过程中挂掉了, 返回 EOF,
+        // 让 writer 写下一条 record 时覆盖掉这部分数据
         buffer_.clear();
         return kEof;
       }
