@@ -15,6 +15,7 @@ namespace log {
 Reader::Reporter::~Reporter() {
 }
 
+// 创建一个顺序读取的 log reader
 Reader::Reader(SequentialFile* file, Reporter* reporter, bool checksum,
                uint64_t initial_offset)
     : file_(file),
@@ -82,6 +83,10 @@ bool Reader::ReadRecord(Slice* record, std::string* scratch) {
     uint64_t physical_record_offset =
         end_of_buffer_offset_ - buffer_.size() - kHeaderSize - fragment.size();
 
+    // 指定 offset 的情况下, 头一个记录可能不完整, 需要跳过
+    // 一个完整的记录包含一系列连续的 record:
+    // - kFirstType: 第一个 record
+    // - kMiddleType: 若干个连续的记录
     if (resyncing_) {
       if (record_type == kMiddleType) {
         continue;
