@@ -147,6 +147,7 @@ DBImpl::DBImpl(const Options& raw_options, const std::string& dbname)
 
 DBImpl::~DBImpl() {
   // Wait for background work to finish
+  // 必须要等待 compaction 完成
   mutex_.Lock();
   shutting_down_.Release_Store(this);  // Any non-NULL value is ok
   while (bg_compaction_scheduled_) {
@@ -271,6 +272,10 @@ void DBImpl::DeleteObsoleteFiles() {
   }
 }
 
+// 尝试恢复数据库
+// 选项:
+// - create_if_missing: 如果未找到数据库文件, 则新建一个
+// - error_if_exists: 如果数据库文件已经找到, 则报错
 Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
   mutex_.AssertHeld();
 
@@ -286,6 +291,7 @@ Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
 
   if (!env_->FileExists(CurrentFileName(dbname_))) {
     if (options_.create_if_missing) {
+      // 新建一个 db
       s = NewDB();
       if (!s.ok()) {
         return s;
@@ -301,6 +307,7 @@ Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
     }
   }
 
+  // 从数据库文件恢复
   s = versions_->Recover(save_manifest);
   if (!s.ok()) {
     return s;
@@ -314,13 +321,18 @@ Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
   // Note that PrevLogNumber() is no longer used, but we pay
   // attention to it in case we are recovering a database
   // produced by an older version of leveldb.
+  // 下面需要筛选出哪些 log 是有效的
   const uint64_t min_log = versions_->LogNumber();
   const uint64_t prev_log = versions_->PrevLogNumber();
+
+  // 获取所有的 db 目录下所有的文件
   std::vector<std::string> filenames;
   s = env_->GetChildren(dbname_, &filenames);
   if (!s.ok()) {
     return s;
   }
+
+  // 获取活跃有效的文件
   std::set<uint64_t> expected;
   versions_->AddLiveFiles(&expected);
   uint64_t number;
@@ -1487,6 +1499,7 @@ Status DB::Delete(const WriteOptions& opt, const Slice& key) {
 
 DB::~DB() { }
 
+// 打开一个 db
 Status DB::Open(const Options& options, const std::string& dbname,
                 DB** dbptr) {
   *dbptr = NULL;
@@ -1496,6 +1509,7 @@ Status DB::Open(const Options& options, const std::string& dbname,
   VersionEdit edit;
   // Recover handles create_if_missing, error_if_exists
   bool save_manifest = false;
+  // 尝试从已有数据库恢复
   Status s = impl->Recover(&edit, &save_manifest);
   if (s.ok() && impl->mem_ == NULL) {
     // Create new log and a corresponding memtable.

@@ -906,6 +906,7 @@ Status VersionSet::LogAndApply(VersionEdit* edit, port::Mutex* mu) {
   return s;
 }
 
+// 找到 CURRENT save_manifest 文件, 并加载
 Status VersionSet::Recover(bool *save_manifest) {
   struct LogReporter : public log::Reader::Reporter {
     Status* status;
@@ -920,9 +921,11 @@ Status VersionSet::Recover(bool *save_manifest) {
   if (!s.ok()) {
     return s;
   }
+  // CURRENT 文件末尾有一个换行符
   if (current.empty() || current[current.size()-1] != '\n') {
     return Status::Corruption("CURRENT file does not end with newline");
   }
+  // 去掉末尾的换行符
   current.resize(current.size() - 1);
 
   std::string dscname = dbname_ + "/" + current;
@@ -942,6 +945,7 @@ Status VersionSet::Recover(bool *save_manifest) {
   uint64_t prev_log_number = 0;
   Builder builder(this, current_);
 
+  // 读取 mainfest 文件中的记录, 每一条都是一个 VersionEdit
   {
     LogReporter reporter;
     reporter.status = &s;
@@ -1186,6 +1190,7 @@ uint64_t VersionSet::ApproximateOffsetOf(Version* v, const InternalKey& ikey) {
   return result;
 }
 
+// 获取当前正在使用的文件列表
 void VersionSet::AddLiveFiles(std::set<uint64_t>* live) {
   for (Version* v = dummy_versions_.next_;
        v != &dummy_versions_;

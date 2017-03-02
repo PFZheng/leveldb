@@ -57,6 +57,7 @@ bool Reader::SkipToInitialBlock() {
   return true;
 }
 
+// 顺序解析一个 log 文件, 读出一条记录
 bool Reader::ReadRecord(Slice* record, std::string* scratch) {
   if (last_record_offset_ < initial_offset_) {
     if (!SkipToInitialBlock()) {

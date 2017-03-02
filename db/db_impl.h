@@ -3,7 +3,7 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 // 
 // DB 的组成:
-// - Version: 每一个 level 的文件形成一个 Version.
+// - VersionSet: 每一个 level 的文件形成一个 Version, Version 的集合信息由 VersionSet 维护.
 
 #ifndef STORAGE_LEVELDB_DB_DB_IMPL_H_
 #define STORAGE_LEVELDB_DB_DB_IMPL_H_
@@ -140,6 +140,8 @@ class DBImpl : public DB {
   port::Mutex mutex_;
   port::AtomicPointer shutting_down_;
   port::CondVar bg_cv_;          // Signalled when background work finishes
+
+  // 内存表、已合并后的内存表, 这些是非持久化的信息
   MemTable* mem_;
   MemTable* imm_;                // Memtable being compacted
   port::AtomicPointer has_imm_;  // So bg thread can detect non-NULL imm_
@@ -149,9 +151,11 @@ class DBImpl : public DB {
   uint32_t seed_;                // For sampling.
 
   // Queue of writers.
+  // 等待的 writer
   std::deque<Writer*> writers_;
   WriteBatch* tmp_batch_;
 
+  // 当前的 snapshot
   SnapshotList snapshots_;
 
   // Set of table files to protect from deletion because they are
