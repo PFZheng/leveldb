@@ -18,6 +18,8 @@
 
 namespace leveldb {
 
+// 为什么没有直接采用 protocal buf 呢, 或者说, 这段代码就是来自 prtobuf
+
 // Standard Put... routines append to a string
 extern void PutFixed32(std::string* dst, uint32_t value);
 extern void PutFixed64(std::string* dst, uint64_t value);

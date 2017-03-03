@@ -38,7 +38,7 @@ static int64_t ExpandedCompactionByteSizeLimit(const Options* options) {
 }
 
 // 每个 level 数据量上限
-// 每一级 level 比上一级容量多十倍
+// 每一级 level 比上一级容量多十倍 
 // level 0  和 level 1 为 10 * 1024 * 1024 (10MB)
 static double MaxBytesForLevel(const Options* options, int level) {
   // Note: the result for level zero is not really used since we set
@@ -705,7 +705,7 @@ class VersionSet::Builder {
       // of data before triggering a compaction.
       f->allowed_seeks = (f->file_size / 16384);
       if (f->allowed_seeks < 100) f->allowed_seeks = 100;
-
+      // 删除的文件可能被复用
       levels_[level].deleted_files.erase(f->number);
       levels_[level].added_files->insert(f);
     }
@@ -907,7 +907,6 @@ Status VersionSet::LogAndApply(VersionEdit* edit, port::Mutex* mu) {
 }
 
 // 找到 CURRENT save_manifest 文件, 并加载
-// 从数据库文件恢复数据
 Status VersionSet::Recover(bool *save_manifest) {
   struct LogReporter : public log::Reader::Reporter {
     Status* status;
@@ -917,7 +916,6 @@ Status VersionSet::Recover(bool *save_manifest) {
   };
 
   // Read "CURRENT" file, which contains a pointer to the current manifest file
-  // 读取 CURRENT 文件
   std::string current;
   Status s = ReadFileToString(env_, CurrentFileName(dbname_), &current);
   if (!s.ok()) {
@@ -930,7 +928,6 @@ Status VersionSet::Recover(bool *save_manifest) {
   // 去掉末尾的换行符
   current.resize(current.size() - 1);
 
-  // CURRENT 中保存的是描述文件名, 以顺序读取文件方式打开
   std::string dscname = dbname_ + "/" + current;
   SequentialFile* file;
   s = env_->NewSequentialFile(dscname, &file);

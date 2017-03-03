@@ -21,7 +21,7 @@ Reader::Reader(SequentialFile* file, Reporter* reporter, bool checksum,
     : file_(file),
       reporter_(reporter),
       checksum_(checksum),
-      backing_store_(new char[kBlockSize]),
+      backing_store_(new char[kBlockSize]), // 一次读取一个 block, 32KB
       buffer_(),
       eof_(false),
       last_record_offset_(0),
@@ -39,6 +39,7 @@ bool Reader::SkipToInitialBlock() {
   uint64_t block_start_location = initial_offset_ - offset_in_block;
 
   // Don't search a block if we'd be in the trailer
+  // block 的最后 6 个字节是保留的, 固定的尾部, 直接跳到下一个 block
   if (offset_in_block > kBlockSize - 6) {
     offset_in_block = 0;
     block_start_location += kBlockSize;
@@ -60,6 +61,7 @@ bool Reader::SkipToInitialBlock() {
 
 // 顺序解析一个 log 文件, 读出一条记录
 bool Reader::ReadRecord(Slice* record, std::string* scratch) {
+  // 上一个 record offset 比初始 offset 还小, 跳过去
   if (last_record_offset_ < initial_offset_) {
     if (!SkipToInitialBlock()) {
       return false;
@@ -151,6 +153,7 @@ bool Reader::ReadRecord(Slice* record, std::string* scratch) {
         } else {
           scratch->append(fragment.data(), fragment.size());
           *record = Slice(*scratch);
+          // prospective_record_offset 是上一个记录的起始 offset
           last_record_offset_ = prospective_record_offset;
           return true;
         }
@@ -203,7 +206,7 @@ void Reader::ReportDrop(uint64_t bytes, const Status& reason) {
   }
 }
 
-// 读取一个 record
+// 从磁盘文件读取一个 record
 unsigned int Reader::ReadPhysicalRecord(Slice* result) {
   while (true) {
     if (buffer_.size() < kHeaderSize) {
@@ -218,6 +221,7 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
           eof_ = true;
           return kEof;
         } else if (buffer_.size() < kBlockSize) {
+          // 读到文件尾部了
           eof_ = true;
         }
         continue;
@@ -234,21 +238,28 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
     }
 
     // Parse the header
+    // header 记录了了一下信息
+    // - 0-4 字节: 实际数据的 crc checksum
+    // - 4-5 字节: 实际数据长度
+    // - 6 字节: 记录类型
     const char* header = buffer_.data();
     const uint32_t a = static_cast<uint32_t>(header[4]) & 0xff;
     const uint32_t b = static_cast<uint32_t>(header[5]) & 0xff;
     const unsigned int type = header[6];
     const uint32_t length = a | (b << 8);
     if (kHeaderSize + length > buffer_.size()) {
+      // header + 长度记录超出缓冲区, 说明这个记录不完整或者 length 错误
       size_t drop_size = buffer_.size();
       buffer_.clear();
       if (!eof_) {
+        // 中间的记录出问题了, 报异常
         ReportCorruption(drop_size, "bad record length");
         return kBadRecord;
       }
       // If the end of the file has been reached without reading |length| bytes
       // of payload, assume the writer died in the middle of writing the record.
       // Don't report a corruption.
+      // 最后一个记录不完整, 直接把它丢弃掉
       return kEof;
     }
 
@@ -285,6 +296,7 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
       return kBadRecord;
     }
 
+    // 除去头部外的实际数据是一个 slice
     *result = Slice(header + kHeaderSize, length);
     return type;
   }

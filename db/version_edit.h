@@ -25,6 +25,13 @@ struct FileMetaData {
   FileMetaData() : refs(0), allowed_seeks(1 << 30), file_size(0) { }
 };
 
+// 每一个 VersionEdit 记录包含以下信息:
+// - comparator name:
+// - log number: 本 log 的序列号
+// - prev log number: 上一条 log 序列号
+// - next file number: 写一个文件序列号
+// - last sequence: 
+// - compact pointer: 
 class VersionEdit {
  public:
   VersionEdit() { Clear(); }
@@ -76,6 +83,7 @@ class VersionEdit {
     deleted_files_.insert(std::make_pair(level, file));
   }
 
+  // version edit 日志编解码
   void EncodeTo(std::string* dst) const;
   Status DecodeFrom(const Slice& src);
 
