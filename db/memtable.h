@@ -11,6 +11,8 @@
 #include "db/skiplist.h"
 #include "util/arena.h"
 
+// memtable 的内部实现实际上是 skip list, 删除操作是一个特殊的插入
+
 namespace leveldb {
 
 class InternalKeyComparator;

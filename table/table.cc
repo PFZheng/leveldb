@@ -35,6 +35,7 @@ struct Table::Rep {
   Block* index_block;
 };
 
+// 打开一个 SSTable 文件
 Status Table::Open(const Options& options,
                    RandomAccessFile* file,
                    uint64_t size,
@@ -44,6 +45,7 @@ Status Table::Open(const Options& options,
     return Status::Corruption("file is too short to be an sstable");
   }
 
+  // 读取 footer, footer 的大小是固定的
   char footer_space[Footer::kEncodedLength];
   Slice footer_input;
   Status s = file->Read(size - Footer::kEncodedLength, Footer::kEncodedLength,
@@ -55,6 +57,7 @@ Status Table::Open(const Options& options,
   if (!s.ok()) return s;
 
   // Read the index block
+  // 读取 index block
   BlockContents contents;
   Block* index_block = NULL;
   if (s.ok()) {

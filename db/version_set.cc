@@ -333,6 +333,7 @@ void Version::ForEachOverlapping(Slice user_key, Slice internal_key,
   }
 }
 
+// 查找指定的key, 获取 value
 Status Version::Get(const ReadOptions& options,
                     const LookupKey& k,
                     std::string* value,
@@ -352,6 +353,7 @@ Status Version::Get(const ReadOptions& options,
   // in an smaller level, later levels are irrelevant.
   std::vector<FileMetaData*> tmp;
   FileMetaData* tmp2;
+  // 从低 level 开始搜索, 一直到高 level
   for (int level = 0; level < config::kNumLevels; level++) {
     size_t num_files = files_[level].size();
     if (num_files == 0) continue;
@@ -359,6 +361,7 @@ Status Version::Get(const ReadOptions& options,
     // Get the list of files to search in this level
     FileMetaData* const* files = &files_[level][0];
     if (level == 0) {
+      // level 0 中数据有交叠, 需要搜索所有可能的文件
       // Level-0 files may overlap each other.  Find all files that
       // overlap user_key and process them in order from newest to oldest.
       tmp.reserve(num_files);
@@ -375,6 +378,7 @@ Status Version::Get(const ReadOptions& options,
       files = &tmp[0];
       num_files = tmp.size();
     } else {
+      // 其他 level 只需要找出范围符合的文件
       // Binary search to find earliest index whose largest key >= ikey.
       uint32_t index = FindFile(vset_->icmp_, files_[level], ikey);
       if (index >= num_files) {
@@ -712,6 +716,8 @@ class VersionSet::Builder {
   }
 
   // Save the current state in *v.
+  // 保存当前的状态添加到 Version 中, 生成的 Version 只包含有效的数据文件, 无用的数据文件
+  // 将被清除掉
   void SaveTo(Version* v) {
     BySmallestKey cmp;
     cmp.internal_comparator = &vset_->icmp_;
@@ -723,6 +729,7 @@ class VersionSet::Builder {
       std::vector<FileMetaData*>::const_iterator base_end = base_files.end();
       const FileSet* added = levels_[level].added_files;
       v->files_[level].reserve(base_files.size() + added->size());
+      // 归并排序, key 从小到大
       for (FileSet::const_iterator added_iter = added->begin();
            added_iter != added->end();
            ++added_iter) {
@@ -804,6 +811,7 @@ VersionSet::~VersionSet() {
   delete descriptor_file_;
 }
 
+// 将版本追加到版本列表中
 void VersionSet::AppendVersion(Version* v) {
   // Make "v" current
   assert(v->refs_ == 0);
@@ -1010,6 +1018,7 @@ Status VersionSet::Recover(bool *save_manifest) {
   }
 
   if (s.ok()) {
+    // 创建一个新的 version, 并加到版本列表中
     Version* v = new Version(this);
     builder.SaveTo(v);
     // Install recovered version
@@ -1103,6 +1112,8 @@ void VersionSet::Finalize(Version* v) {
     }
   }
 
+  // 分支最高的level是最应该进行 compaction 的
+  // level 0 是以文件数量决定的, 其他 level 是以数据量决定的
   v->compaction_level_ = best_level;
   v->compaction_score_ = best_score;
 }

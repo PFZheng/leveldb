@@ -14,6 +14,8 @@
 
 namespace leveldb {
 
+// 生成 table 文件的过程其实很简单, 就是依序遍历每个 Key, 将其交给 table builder 去
+// 处理
 Status BuildTable(const std::string& dbname,
                   Env* env,
                   const Options& options,

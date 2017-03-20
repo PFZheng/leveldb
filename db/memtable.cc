@@ -84,9 +84,10 @@ Iterator* MemTable::NewIterator() {
 void MemTable::Add(SequenceNumber s, ValueType type,
                    const Slice& key,
                    const Slice& value) {
-  // Format of an entry is concatenation of:
+  // 每一条记录的结构:
   //  key_size     : varint32 of internal_key.size()
   //  key bytes    : char[internal_key.size()]
+  //  value type   : 8 bytes
   //  value_size   : varint32 of value.size()
   //  value bytes  : char[value.size()]
   size_t key_size = key.size();
